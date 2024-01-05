@@ -3,24 +3,37 @@ import requests
 import json
 
 class Canvas:
-    def __init__(self, canvas_url, api_key):
-        self.canvas_url =  {'LPS_Production': 'https://canvas.upenn.edu/', 'LPS_Test': 'https://upenn.test.instructure.com/'}
-        self.api_key = api_key
+    def __init__(self, instance):
+            self.instance = instance
+    
+    def get_token(self=None):
+        
+        with open('C:\Users\Levester\Desktop\cred.json', 'r') as f:
+             cred = json.load(f)
+        
+        return cred
         
 
+    server_url  =  {'LPS_Production': 'https://canvas.upenn.edu/', 'LPS_Test': 'https://upenn.test.instructure.com/'}
+    
+    def headers(self):
+        token = self.get_token()
+        headers = {'Content-Type': 'application/json',
+                   'Authorization': 'Bearer {}'.format(token[f'{self.instance}'])}
+        return headers
+        
     def get_course_discussion_data(self, course_id):
         # Get all discussion topics in the course
-        discussion_topics_url = f'{self.canvas_url}/api/v1/courses/{course_id}/discussion_topics'
-        headers = {'Authorization': f'Bearer {self.api_key}'}
-        response = requests.get(discussion_topics_url, headers=headers)
+        discussion_topics_url = f'{self.server_url}/api/v1/courses/{course_id}/discussion_topics'
+        response = requests.get(discussion_topics_url, headers = self.headers())
         discussion_topics = response.json()
 
         # Create a dictionary to store the discussion data for each student
         student_discussion_data = {}
         for discussion_topic in discussion_topics:
             # Get all discussion posts for the topic
-            discussion_posts_url = f'{self.canvas_url}/api/v1/courses/{course_id}/discussion_topics/{discussion_topic["id"]}/posts'
-            response = requests.get(discussion_posts_url, headers=headers)
+            discussion_posts_url =  f'{self.server_url}/api/v1/courses/{course_id}/discussion_topics/{discussion_topic["id"]}/posts'
+            response = requests.get(discussion_posts_url, headers=self.headers())
             discussion_posts = response.json()
 
             # Iterate over the discussion posts and tally the number of original posts and replies for each student
@@ -59,13 +72,12 @@ class Canvas:
                     ])
 
 if __name__ == '__main__':
-    canvas_url = 'https://canvas.example.com'
-    api_key = 'YOUR_CANVAS_API_KEY'
-    course_id = 12345
+    canvas = Canvas()
+    canvas.instance = 'LPS_Production'
+    # Test course id for Levster's Sandbox (located at the end of url)
+    course_id = 1748632
 
-    # Create a Canvas object
-    canvas = Canvas(canvas_url, api_key)
-
+   
     # Get the discussion data for the course
     student_discussion_data = canvas.get_course_discussion_data(course_id)
 
