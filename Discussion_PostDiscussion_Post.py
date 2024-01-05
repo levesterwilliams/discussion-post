@@ -7,7 +7,7 @@ class Canvas:
         self.instance = instance
 
     def get_token(self=None):
-        with open('cred.json', 'r') as f:
+         with open(r'\Users\Levester\source\repos\discussion-post\Discussion_Post\cred.json') as f:
             cred = json.load(f)
         return cred
 
