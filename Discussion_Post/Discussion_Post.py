@@ -4,15 +4,12 @@ import json
 
 class Canvas:
     def __init__(self, instance):
-            self.instance = instance
-    
+        self.instance = instance
+
     def get_token(self=None):
-        
-        with open('C:\Users\Levester\Desktop\cred.json', 'r') as f:
-             cred = json.load(f)
-        
+        with open('cred.json', 'r') as f:
+            cred = json.load(f)
         return cred
-        
 
     server_url  =  {'LPS_Production': 'https://canvas.upenn.edu/', 'LPS_Test': 'https://upenn.test.instructure.com/'}
     
@@ -21,36 +18,46 @@ class Canvas:
         headers = {'Content-Type': 'application/json',
                    'Authorization': 'Bearer {}'.format(token[f'{self.instance}'])}
         return headers
-        
+
+    def get_students(self, course_id):
+        # Fetch students enrolled in the course
+        students_url = f'{self.server_url[self.instance]}api/v1/courses/{course_id}/users?enrollment_type[]=student'
+        response = requests.get(students_url, headers=self.headers())
+        students = response.json()
+        return {student['id']: student['name'] for student in students}
+
     def get_course_discussion_data(self, course_id):
         # Get all discussion topics in the course
-        discussion_topics_url = f'{self.server_url}/api/v1/courses/{course_id}/discussion_topics'
+        discussion_topics_url = f'{self.server_url[self.instance]}api/v1/courses/{course_id}/discussion_topics'
         response = requests.get(discussion_topics_url, headers = self.headers())
         discussion_topics = response.json()
 
-        # Create a dictionary to store the discussion data for each student
-        student_discussion_data = {}
+        # Get students
+        students = self.get_students(course_id)
+        
+        # Initialize data structure for discussion data
+        student_discussion_data = {name: {} for _, name in students.items()}
+        for topic in discussion_topics:
+            topic_title = topic['title']
+            for student in student_discussion_data:
+                student_discussion_data[student][f'{topic_title} - Original Post'] = False
+                student_discussion_data[student][f'{topic_title} - Replies'] = False
+
         for discussion_topic in discussion_topics:
             # Get all discussion posts for the topic
-            discussion_posts_url =  f'{self.server_url}/api/v1/courses/{course_id}/discussion_topics/{discussion_topic["id"]}/posts'
+            discussion_posts_url = f'{self.server_url[self.instance]}api/v1/courses/{course_id}/discussion_topics/{discussion_topic["id"]}/posts'
             response = requests.get(discussion_posts_url, headers=self.headers())
             discussion_posts = response.json()
 
-            # Iterate over the discussion posts and tally the number of original posts and replies for each student
+            # Check if each student has posted or replied in the topic
             for discussion_post in discussion_posts:
                 student_id = discussion_post['author_id']
-                if student_id not in student_discussion_data:
-                    student_discussion_data[student_id] = {}
-
-                if discussion_post['parent_id'] is None:
-                    # Original post
-                    student_discussion_data[student_id][discussion_topic['title']] = {
-                        'original_posts': 1,
-                        'replies': 0
-                    }
-                else:
-                    # Reply
-                    student_discussion_data[student_id][discussion_topic['title']]['replies'] += 1
+                if student_id in students:
+                    student_name = students[student_id]
+                    if discussion_post['parent_id'] is None:  # Original post
+                        student_discussion_data[student_name][f'{discussion_topic["title"]} - Original Post'] = True
+                    else:  # Reply
+                        student_discussion_data[student_name][f'{discussion_topic["title"]} - Replies'] = True
 
         return student_discussion_data
 
@@ -59,22 +66,18 @@ class Canvas:
             writer = csv.writer(csvfile)
 
             # Write the header row
-            writer.writerow(['Student ID', 'Discussion Topic', 'Original Posts', 'Replies'])
+            headers = ['Student\'s Name']
+            for topic in next(iter(student_discussion_data.values())).keys():
+                headers.append(topic)
+            writer.writerow(headers)
 
-            # Iterate over the student discussion data and write each row to the CSV file
-            for student_id, discussion_topic_data in student_discussion_data.items():
-                for discussion_topic, post_data in discussion_topic_data.items():
-                    writer.writerow([
-                        student_id,
-                        discussion_topic,
-                        post_data['original_posts'],
-                        post_data['replies']
-                    ])
+            # Write each student's data
+            for student_name, topics in student_discussion_data.items():
+                row = [student_name] + list(topics.values())
+                writer.writerow(row)
 
 if __name__ == '__main__':
-    canvas = Canvas()
-    canvas.instance = 'LPS_Production'
-    # Test course id for Sandbox (located at the end of url)
+    canvas = Canvas('LPS_Production')
     course_id = 1748632
 
     # Get the discussion data for the course
@@ -83,4 +86,3 @@ if __name__ == '__main__':
     # Write the discussion data to a CSV file
     output_file_path = 'discussion_data.csv'
     canvas.write_discussion_data_to_csv(student_discussion_data, output_file_path)
-
