@@ -74,10 +74,9 @@ class Canvas:
 if __name__ == '__main__':
     canvas = Canvas()
     canvas.instance = 'LPS_Production'
-    # Test course id for Levster's Sandbox (located at the end of url)
+    # Test course id for Sandbox (located at the end of url)
     course_id = 1748632
 
-   
     # Get the discussion data for the course
     student_discussion_data = canvas.get_course_discussion_data(course_id)
 
