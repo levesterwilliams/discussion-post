@@ -7,7 +7,7 @@ class Canvas:
         self.instance = instance
 
     def get_token(self=None):
-         with open(r'\Users\Levester\source\repos\discussion-post\Discussion_Post\cred.json') as f:
+        with open(r'\Users\Levester\source\repos\discussion-post\cred.json') as f:
             cred = json.load(f)
         return cred
 
@@ -77,8 +77,8 @@ class Canvas:
                 writer.writerow(row)
 
 if __name__ == '__main__':
-    canvas = Canvas('LPS_Production')
-    course_id = 1748632
+    canvas = Canvas('LPS_Test')
+    course_id = '1748632'
 
     # Get the discussion data for the course
     student_discussion_data = canvas.get_course_discussion_data(course_id)
