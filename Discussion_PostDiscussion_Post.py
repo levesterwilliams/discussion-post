@@ -19,12 +19,18 @@ class Canvas:
                    'Authorization': 'Bearer {}'.format(token[f'{self.instance}'])}
         return headers
 
+    # Retrieve students and test to see if the correct JSON object has been retrieved
     def get_students(self, course_id):
         # Fetch students enrolled in the course
         students_url = f'{self.server_url[self.instance]}api/v1/courses/{course_id}/users?enrollment_type[]=student'
         response = requests.get(students_url, headers=self.headers())
         students = response.json()
-        return {student['id']: student['name'] for student in students}
+        print("API Responses:", students)
+        if isinstance(students, list) and all(isinstance(students, dict) for student in students):
+            return {student['id']: student['name'] for student in students}
+        else:
+            print("Error: Unexpected API response format")
+            return {}
 
     def get_course_discussion_data(self, course_id):
         # Get all discussion topics in the course
@@ -62,6 +68,10 @@ class Canvas:
         return student_discussion_data
 
     def write_discussion_data_to_csv(self, student_discussion_data, output_file_path):
+        # Return without outputting a csv file if no students are found in course
+        if not student_discussion_data:
+            print("No student discussion data")
+            return
         with open(output_file_path, 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
 
@@ -76,9 +86,21 @@ class Canvas:
                 row = [student_name] + list(topics.values())
                 writer.writerow(row)
 
+    # Retrieve course name
+    def get_course_name(self, course_id):
+        course_url =  f'{self.server_url[self.instance]}api/v1/courses/{course_id}'
+        response = requests.get(course_url, headers=self.headers())
+        course = response.json()
+        return course.get('name', 'Unknown Course')
+
+
 if __name__ == '__main__':
     canvas = Canvas('LPS_Test')
     course_id = '1748632'
+
+    # Test to check course name
+    course_name = canvas.get_course_name(course_id)
+    print(f"Course Name: {course_name}")
 
     # Get the discussion data for the course
     student_discussion_data = canvas.get_course_discussion_data(course_id)
