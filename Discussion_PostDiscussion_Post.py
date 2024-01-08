@@ -1,7 +1,7 @@
 import csv
 import requests
 import json
-
+from pathlib import Path
 class Canvas:
     def __init__(self, instance):
         self.instance = instance
@@ -11,7 +11,7 @@ class Canvas:
             cred = json.load(f)
         return cred
 
-    server_url  =  {'LPS_Production': 'https://canvas.upenn.edu/', 'LPS_Test': 'https://upenn.test.instructure.com/'}
+    server_url = {'LPS_Production': 'https://canvas.upenn.edu/', 'LPS_Test': 'https://upenn.test.instructure.com/'}
     
     def headers(self):
         token = self.get_token()
@@ -35,7 +35,7 @@ class Canvas:
     def get_course_discussion_data(self, course_id):
         # Get all discussion topics in the course
         discussion_topics_url = f'{self.server_url[self.instance]}api/v1/courses/{course_id}/discussion_topics'
-        response = requests.get(discussion_topics_url, headers = self.headers())
+        response = requests.get(discussion_topics_url, headers=self.headers())
         discussion_topics = response.json()
 
         # Get students
@@ -67,24 +67,33 @@ class Canvas:
 
         return student_discussion_data
 
-    def write_discussion_data_to_csv(self, student_discussion_data, output_file_path):
+    def write_discussion_data_to_csv(self, student_discussion_data):
         # Return without outputting a csv file if no students are found in course
         if not student_discussion_data:
             print("No student discussion data")
             return
+        # Determine the path to the user's download folder
+        download_folder = Path.home() / 'Downloads'
+        if not download_folder.exists():
+            download_folder.mkdir()
+            print(f"Created folder: {download_folder}")
+
+        output_file_path = download_folder / 'discusssion_data.csv'
+
         with open(output_file_path, 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
 
-            # Write the header row
-            headers = ['Student\'s Name']
-            for topic in next(iter(student_discussion_data.values())).keys():
-                headers.append(topic)
+            headers = ['Student\'s Name'] + [f"{topic} - Original Post" for topic in next(iter(
+                student_discussion_data.values()), {}).keys()] + [f"{topic} - Replies" for topic in next(iter(
+                student_discussion_data.values()), {}).keys()]
+
             writer.writerow(headers)
 
-            # Write each student's data
             for student_name, topics in student_discussion_data.items():
                 row = [student_name] + list(topics.values())
                 writer.writerow(row)
+
+        print(f"CSV file written to {output_file_path}")
 
     # Retrieve course name
     def get_course_name(self, course_id):
@@ -106,5 +115,4 @@ if __name__ == '__main__':
     student_discussion_data = canvas.get_course_discussion_data(course_id)
 
     # Write the discussion data to a CSV file
-    output_file_path = 'discussion_data.csv'
-    canvas.write_discussion_data_to_csv(student_discussion_data, output_file_path)
+    canvas.write_discussion_data_to_csv(student_discussion_data)
